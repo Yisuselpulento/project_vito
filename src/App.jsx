@@ -22,22 +22,20 @@ function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tokenFromUrl = params.get('token');
-    const tokenFromSession = sessionStorage.getItem('buses_token');
+    const tokenStored = localStorage.getItem('buses_token');
+    const expiryStored = localStorage.getItem('buses_token_expiry');
     
-    console.log('URL:', window.location.search);
-    console.log('Token URL:', tokenFromUrl ? 'SI' : 'NO');
-    console.log('Token Session:', tokenFromSession ? 'SI' : 'NO');
+    const now = Date.now();
+    const isValid = tokenStored && expiryStored && (now - parseInt(expiryStored) < 24 * 60 * 60 * 1000);
     
     if (tokenFromUrl && tokenFromUrl.length > 20) {
       setApiToken(tokenFromUrl);
-      setApiToken(tokenFromUrl);
-      sessionStorage.setItem('buses_token', tokenFromUrl);
+      localStorage.setItem('buses_token', tokenFromUrl);
+      localStorage.setItem('buses_token_expiry', Date.now().toString());
       setShowTokenInput(false);
-      console.log('Token from URL applied');
-    } else if (tokenFromSession && tokenFromSession.length > 20) {
-      setApiToken(tokenFromSession);
+    } else if (isValid) {
+      setApiToken(tokenStored);
       setShowTokenInput(false);
-      console.log('Token from Session applied, showing input with token');
     }
   }, []);
 
@@ -123,10 +121,15 @@ function App() {
   const handleSaveToken = () => {
     if (apiToken.trim()) {
       setApiToken(apiToken.trim());
-      sessionStorage.setItem('buses_token', apiToken.trim());
-      console.log('Token guardado en App:', apiToken.trim().substring(0, 20) + '...');
+      localStorage.setItem('buses_token', apiToken.trim());
+      localStorage.setItem('buses_token_expiry', Date.now().toString());
+      console.log('Token guardado por 24 horas');
       setShowTokenInput(false);
     }
+  };
+
+  const handleChangeToken = () => {
+    setShowTokenInput(true);
   };
 
   const openInfo = (id) => {
@@ -165,9 +168,17 @@ function App() {
           </div>
         ) : (
           <>
-            <p className="font-bold text-center mb-3 sm:mb-4 text-white">
-               {getRouteLabel()}
-            </p>
+            <div className="flex justify-between items-center mb-3 sm:mb-4">
+              <p className="font-bold text-white">
+                 {getRouteLabel()}
+              </p>
+              <button 
+                onClick={handleChangeToken}
+                className="text-xs text-gray-400 hover:text-white bg-gray-700 px-2 py-1 rounded"
+              >
+                Cambiar Token
+              </button>
+            </div>
             
             <div className="space-y-4 mb-4 sm:mb-6">
               <select 
