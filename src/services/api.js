@@ -124,6 +124,7 @@ export const getPosturasMyInfoAllRoutes = async (fecha, myAssistantName = 'Victo
 
 export const getPosturasMyInfoDateRange = async (fechaDesde, fechaHasta, onProgress, myAssistantName = 'Victor Figueroa Sanchez', token) => {
   const filteredResults = [];
+  const filteredResultsWithInfo = [];
   let totalMonto = 0;
   const tempToken = token || currentToken;
   
@@ -175,6 +176,7 @@ export const getPosturasMyInfoDateRange = async (fechaDesde, fechaHasta, onProgr
         const assistantName = serviceInfo.assistants?.[0]?.name;
         if (assistantName && assistantName.toLowerCase().includes(myAssistantName.toLowerCase())) {
           filteredResults.push(postura);
+          filteredResultsWithInfo.push({ postura, serviceInfo });
           totalMonto += serviceInfo.total_amount || 0;
         }
       }
@@ -185,7 +187,7 @@ export const getPosturasMyInfoDateRange = async (fechaDesde, fechaHasta, onProgr
     current.setDate(current.getDate() + 1);
   }
   
-  return { posturas: filteredResults, totalMonto };
+  return { posturas: filteredResults, totalMonto, posturasWithInfo: filteredResultsWithInfo };
 };
 
 export const getServiceInfo = async (serviceId, token) => {

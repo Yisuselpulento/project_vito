@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { getPosturas, getPosturasMyInfo, getPosturasMyInfoAllRoutes, getPosturasMyInfoDateRange, setApiToken } from './services/api';
+import { getPosturas, getPosturasMyInfoDateRange } from './services/api';
+import * as XLSX from 'xlsx';
 import ServiceTable from './components/ServiceTable';
 import ServiceModal from './components/ServiceModal';
 import './App.css';
-
-function App() {
+  
+  function App() {
   const [posturas, setPosturas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState('');
@@ -16,8 +17,49 @@ function App() {
   const [totalMonto, setTotalMonto] = useState(0);
   const [showTotalMonto, setShowTotalMonto] = useState(false);
   const [ruta, setRuta] = useState('2-3');
+  const [posturasWithInfo, setPosturasWithInfo] = useState([]);
   const [apiToken, setApiToken] = useState('');
   const [showTokenInput, setShowTokenInput] = useState(true);
+
+  const exportToExcel = () => {
+    if (posturasWithInfo.length === 0) return;
+    
+    const getInitials = (cityName) => {
+      if (!cityName) return '-';
+      const lower = cityName.toLowerCase();
+      if (lower.includes('los andes')) return 'LA';
+      if (lower.includes('valparaiso') || lower.includes('valparaíso')) return 'VP';
+      return cityName.split(' ')[0].substring(0, 2).toUpperCase();
+    };
+    
+const headers = ['NOMBRE DEL SERVICIO', 'FECHA DEL VIAJE', 'BUS', 'RECAUDACION'];
+    const rows = posturasWithInfo.map(({ postura, serviceInfo }) => {
+      const origen = serviceInfo?.start_city || '';
+      const destino = serviceInfo?.end_city || '';
+      const iniciales = `${getInitials(origen)} - ${getInitials(destino)}`;
+      
+      let fechaViaje = serviceInfo?.travel_date || postura.stretch?.start_date || '';
+      const bus = serviceInfo?.bus || postura.bus?.code || '';
+      const recaudacion = serviceInfo?.total_amount || 0;
+      
+      return [iniciales, fechaViaje, bus, recaudacion];
+    });
+    
+    const totalFilas = rows.length;
+    rows.push(['PASES', '', '', totalFilas]);
+    
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Reporte');
+    
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/octet-stream' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `reporte_viajes_${fechaDesde}_${fecha}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -86,7 +128,7 @@ function App() {
     setBusquedaRealizada(true);
     setLoadingProgress('Iniciando búsqueda... Esto puede tardar unos minutos');
     try {
-      const { posturas: results, totalMonto } = await getPosturasMyInfoDateRange(
+      const { posturas: results, totalMonto, posturasWithInfo: posturasWithInfoArray } = await getPosturasMyInfoDateRange(
         fechaDesde,
         fecha,
         (progress) => setLoadingProgress(progress),
@@ -100,7 +142,14 @@ function App() {
         return dateA - dateB;
       });
       
+      const sortedPosturasWithInfo = (posturasWithInfoArray || []).sort((a, b) => {
+        const dateA = new Date(a.postura.stretch.start_date);
+        const dateB = new Date(b.postura.stretch.start_date);
+        return dateA - dateB;
+      });
+      
       setPosturas(sortedPosturas);
+      setPosturasWithInfo(sortedPosturasWithInfo);
       setTotalMonto(totalMonto);
       setShowTotalMonto(true);
       setLoadingProgress('');
@@ -251,6 +300,14 @@ function App() {
         
         {!loading && !error && posturas.length > 0 && (
             <>
+              {showTotalMonto && posturasWithInfo.length > 0 && (
+                <button 
+                  onClick={exportToExcel}
+                  className="w-full px-4 py-2 mb-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors text-base"
+                >
+                  Descargar en Excel
+                </button>
+              )}
               <ServiceTable posturas={posturas} onShowInfo={openInfo} />
               
               <p className="text-center text-gray-500 mt-3 sm:mt-4 text-sm">
