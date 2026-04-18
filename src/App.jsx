@@ -18,6 +18,7 @@ import './App.css';
   const [showTotalMonto, setShowTotalMonto] = useState(false);
   const [ruta, setRuta] = useState('2-3');
   const [posturasWithInfo, setPosturasWithInfo] = useState([]);
+  const [showDebugModal, setShowDebugModal] = useState(false);
   const [apiToken, setApiToken] = useState('');
   const [showTokenInput, setShowTokenInput] = useState(true);
 
@@ -46,6 +47,10 @@ const headers = ['NOMBRE DEL SERVICIO', 'FECHA DEL VIAJE', 'BUS', 'RECAUDACION']
     });
     
     const totalFilas = rows.length;
+    const excelTotalMonto = rows.reduce((sum, row) => sum + (row[3] || 0), 0);
+    const ganancia = excelTotalMonto * 0.018;
+    rows.push(['TOTAL MONTO', '', '', excelTotalMonto]);
+    rows.push(['GANANCIA (1.8%)', '', '', ganancia]);
     rows.push(['PASES', '', '', totalFilas]);
     
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -98,6 +103,7 @@ const headers = ['NOMBRE DEL SERVICIO', 'FECHA DEL VIAJE', 'BUS', 'RECAUDACION']
     setBusquedaRealizada(true);
     setTotalMonto(0);
     setShowTotalMonto(false);
+    setPosturasWithInfo([]);
     const { startCity, endCity } = getRouteParams();
     try {
       const results = await getPosturas(fecha, startCity, endCity, apiToken);
@@ -301,12 +307,20 @@ const headers = ['NOMBRE DEL SERVICIO', 'FECHA DEL VIAJE', 'BUS', 'RECAUDACION']
         {!loading && !error && posturas.length > 0 && (
             <>
               {showTotalMonto && posturasWithInfo.length > 0 && (
-                <button 
-                  onClick={exportToExcel}
-                  className="w-full px-4 py-2 mb-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors text-base"
-                >
-                  Descargar en Excel
-                </button>
+                <>
+                  <button 
+                    onClick={exportToExcel}
+                    className="w-full px-4 py-2 mb-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors text-base"
+                  >
+                    Descargar en Excel
+                  </button>
+                  <button 
+                    onClick={() => setShowDebugModal(true)}
+                    className="w-full px-4 py-2 mb-3 bg-yellow-600 hover:bg-yellow-700 text-white font-medium rounded-lg transition-colors text-base"
+                  >
+                    Ver datos Excel
+                  </button>
+                </>
               )}
               <ServiceTable posturas={posturas} onShowInfo={openInfo} />
               
@@ -331,6 +345,48 @@ const headers = ['NOMBRE DEL SERVICIO', 'FECHA DEL VIAJE', 'BUS', 'RECAUDACION']
 
       {selectedService && (
         <ServiceModal serviceId={selectedService} onClose={closeModal} apiToken={apiToken} />
+      )}
+
+      {showDebugModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-auto p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">Datos para Excel</h2>
+              <button onClick={() => setShowDebugModal(false)} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div className="text-gray-300 text-sm overflow-auto">
+              <p className="mb-2 text-yellow-400 font-bold">posturasWithInfo length: {posturasWithInfo.length}</p>
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-700 text-white">
+                    <th className="p-2">ID</th>
+                    <th className="p-2">NOMBRE</th>
+                    <th className="p-2">FECHA</th>
+                    <th className="p-2">BUS</th>
+                    <th className="p-2">MONTO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {posturasWithInfo.map((item, idx) => (
+                    <tr key={idx} className="border-b border-gray-600">
+                      <td className="p-2">{item.postura.id}</td>
+                      <td className="p-2">{item.postura.name}</td>
+                      <td className="p-2">{item.serviceInfo?.travel_date}</td>
+                      <td className="p-2">{item.serviceInfo?.bus}</td>
+                      <td className="p-2">{item.serviceInfo?.total_amount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="mt-4 text-green-400 font-bold">
+                TOTAL calculado: {posturasWithInfo.reduce((sum, item) => sum + (item.serviceInfo?.total_amount || 0), 0)}
+              </p>
+              <p className="mt-2 text-yellow-400 font-bold">
+               PASES: {posturasWithInfo.length}
+              </p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
