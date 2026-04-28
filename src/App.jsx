@@ -325,7 +325,12 @@ const headers = ['NOMBRE DEL SERVICIO', 'FECHA DEL VIAJE', 'BUS', 'RECAUDACION']
               <ServiceTable posturas={posturas} onShowInfo={openInfo} />
               
               <p className="text-center text-gray-500 mt-3 sm:mt-4 text-sm">
-                Total: {posturas.length} 
+                {(() => {
+                  const uniquePosturas = posturas.filter((postura, index, self) => 
+                    index === self.findIndex(p => p.id === postura.id)
+                  );
+                  return `Total: ${uniquePosturas.length}`;
+                })()}
               </p>
               {showTotalMonto && totalMonto > 0 && (
                 <>
