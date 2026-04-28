@@ -154,9 +154,17 @@ const headers = ['NOMBRE DEL SERVICIO', 'FECHA DEL VIAJE', 'BUS', 'RECAUDACION']
         return dateA - dateB;
       });
       
+      const uniquePosturasWithInfo = sortedPosturasWithInfo.filter((item, index, self) => 
+        index === self.findIndex(p => p.postura.id === item.postura.id)
+      );
+      
+      const calculatedTotalMonto = uniquePosturasWithInfo.reduce((sum, item) => 
+        sum + (item.serviceInfo?.total_amount || 0), 0
+      );
+      
       setPosturas(sortedPosturas);
-      setPosturasWithInfo(sortedPosturasWithInfo);
-      setTotalMonto(totalMonto);
+      setPosturasWithInfo(uniquePosturasWithInfo);
+      setTotalMonto(calculatedTotalMonto);
       setShowTotalMonto(true);
       setLoadingProgress('');
     } catch (err) {
